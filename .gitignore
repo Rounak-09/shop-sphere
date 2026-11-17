@@ -1,0 +1,10 @@
+# IntelliJ IDEA
+.idea/
+
+# Environment files
+.env
+
+# Maven build output
+target/
+**/target/
+
