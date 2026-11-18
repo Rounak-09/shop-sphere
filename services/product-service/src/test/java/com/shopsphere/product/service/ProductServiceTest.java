@@ -1,5 +1,6 @@
 package com.shopsphere.product.service;
 
+import com.shopsphere.events.product.ProductEvent;
 import com.shopsphere.product.domain.entity.Product;
 import com.shopsphere.product.domain.repository.ProductRepository;
 
@@ -28,6 +29,9 @@ class ProductServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private OutboxService outboxService;
 
     @InjectMocks
     private ProductService productService;
@@ -180,10 +184,16 @@ class ProductServiceTest {
         when(productRepository.findByIdAndActiveTrue(id))
                 .thenReturn(Optional.of(product));
 
+        // Mockito should return the same entity after saving.
+        when(productRepository.saveAndFlush(product))
+                .thenReturn(product);
+
         productService.deleteProduct(id);
 
         assertFalse(product.isActive());
 
-        verify(productRepository).save(product);
+        verify(productRepository).saveAndFlush(product);
+
+        verify(outboxService).record(any(ProductEvent.class));
     }
 }

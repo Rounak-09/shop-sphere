@@ -1,5 +1,6 @@
 package com.shopsphere.product.service;
 
+import com.shopsphere.events.product.ProductEvent;
 import com.shopsphere.product.domain.entity.Product;
 import com.shopsphere.product.domain.repository.ProductRepository;
 import com.shopsphere.product.domain.specification.ProductSpecification;
@@ -25,6 +26,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -32,34 +35,40 @@ import java.util.UUID;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final OutboxService outboxService;
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, OutboxService outboxService) {
         this.productRepository = productRepository;
+        this.outboxService = outboxService;
     }
 
     // CREATE PRODUCT
 
     @Transactional
-    public ProductResponse createProduct(
-            CreateProductRequest request) {
+    public ProductResponse createProduct(CreateProductRequest request) {
 
-        String sku = request.sku().trim().toUpperCase();
+        String sku = request.sku().trim().toUpperCase(Locale.ROOT);
 
         if (productRepository.existsBySkuIgnoreCase(sku)) {
             throw new DuplicateSkuException(sku);
         }
 
         Product product = ProductMapper.toEntity(request);
+        product.setSku(sku);
 
         try {
             Product savedProduct = productRepository.saveAndFlush(product);
 
-            return ProductMapper.toResponse(savedProduct);
+            ProductResponse response = ProductMapper.toResponse(savedProduct);
 
+            recordProductEvent("PRODUCT_CREATED", response);
+
+            return response;
         } catch (DataIntegrityViolationException exception) {
             // Protect against concurrent requests with the same SKU.
             throw new DuplicateSkuException(sku);
         }
+
     }
 
     // GET PRODUCT BY ID
@@ -139,10 +148,13 @@ public class ProductService {
         ProductMapper.updateEntity(product, request);
 
         try {
-            Product updatedProduct =
-                    productRepository.saveAndFlush(product);
+            Product savedProduct = productRepository.saveAndFlush(product);
 
-            return ProductMapper.toResponse(updatedProduct);
+            ProductResponse response = ProductMapper.toResponse(savedProduct);
+
+            recordProductEvent("PRODUCT_UPDATED", response);
+
+            return response;
 
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateSkuException(sku);
@@ -154,12 +166,34 @@ public class ProductService {
     @Transactional
     public void deleteProduct(UUID id) {
 
-        Product product = productRepository
-                .findByIdAndActiveTrue(id)
+        Product product = productRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ProductNotFoundException(id));
 
         product.setActive(false);
 
-        productRepository.save(product);
+        Product savedProduct = productRepository.saveAndFlush(product);
+
+        ProductResponse response = ProductMapper.toResponse(savedProduct);
+
+        recordProductEvent("PRODUCT_DEACTIVATED", response);
+    }
+
+    private void recordProductEvent(
+            String eventType,
+            ProductResponse product
+    ) {
+        ProductEvent event = new ProductEvent(
+                UUID.randomUUID(),
+                eventType,
+                product.id(),
+                product.sku(),
+                product.name(),
+                product.category(),
+                product.price(),
+                product.currency(),
+                Instant.now()
+        );
+
+        outboxService.record(event);
     }
 }
