@@ -22,7 +22,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "shopsphere.outbox.publisher.enabled=false"
+)
 @AutoConfigureTestRestTemplate
 class ProductIntegrationTest {
 

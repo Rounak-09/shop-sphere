@@ -24,9 +24,19 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       properties:
         spring.json.add.type.headers: false
+
+    consumer:
+      group-id: product-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+    listener:
+      ack-mode: record
 
 server:
   port: ${SERVER_PORT:8082}
@@ -40,3 +50,11 @@ management:
     health:
       probes:
         enabled: true
+
+shopsphere:
+  outbox:
+    publisher:
+      enabled: true
+      batch-size: 50
+      fixed-delay: 5000
+      max-retries: 5

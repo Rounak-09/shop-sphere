@@ -99,4 +99,27 @@ public class OutboxEvent {
     public String getEventType() {
         return eventType;
     }
+
+    public String getAggregateId() {
+        return aggregateId;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void markAsPublished() {
+        this.status = "PUBLISHED";
+        this.publishedAt = Instant.now();
+        this.lastError = null;
+    }
+
+    public void markAsFailed(String error, int maxRetries) {
+        this.retryCount++;
+        this.lastError = error;
+
+        if (this.retryCount >= maxRetries) {
+            this.status = "FAILED";
+        }
+    }
 }
