@@ -1,5 +1,7 @@
 package com.shopsphere.inventory.domain.entity;
 
+import com.shopsphere.inventory.exception.InsufficientReservedStockException;
+import com.shopsphere.inventory.exception.InsufficientStockException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -69,8 +71,10 @@ public class Inventory {
         }
 
         if (quantity > availableQuantity) {
-            throw new IllegalStateException(
-                    "Insufficient available inventory"
+            throw new InsufficientStockException(
+                    productId,
+                    availableQuantity,
+                    quantity
             );
         }
 
@@ -79,9 +83,18 @@ public class Inventory {
     }
 
     public void releaseStock(int quantity) {
-        if (quantity <= 0 || quantity > reservedQuantity) {
+
+        if (quantity <= 0) {
             throw new IllegalArgumentException(
-                    "Invalid reserved quantity"
+                    "Quantity must be greater than zero"
+            );
+        }
+
+        if (quantity > reservedQuantity) {
+            throw new InsufficientReservedStockException(
+                    productId,
+                    reservedQuantity,
+                    quantity
             );
         }
 
